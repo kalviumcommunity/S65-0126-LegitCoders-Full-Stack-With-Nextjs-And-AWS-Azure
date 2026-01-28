@@ -174,7 +174,7 @@ REDIS_PORT=6380
 
 ## Tech Stack
 
-- **Frontend/Backend**: Next.js 15 (TypeScript)
+- **Frontend/Backend**: Next.js 16 (TypeScript)
 - **Database**: PostgreSQL 16
 - **ORM**: Prisma
 - **Cache**: Redis 7

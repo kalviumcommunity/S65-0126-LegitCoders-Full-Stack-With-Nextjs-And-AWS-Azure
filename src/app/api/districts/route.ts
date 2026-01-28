@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import prisma from '@/lib/prisma'
-import { cacheGet, cacheSet } from '@/lib/redis'
+import { cacheGet, cacheSet, cacheDel } from '@/lib/redis'
 
 const CACHE_TTL = 300 // 5 minutes
 
@@ -53,6 +53,30 @@ export async function POST(request: Request) {
       )
     }
 
+    // Validate coordinate ranges
+    if (latitude < -90 || latitude > 90) {
+      return NextResponse.json(
+        { error: 'Latitude must be between -90 and 90' },
+        { status: 400 }
+      )
+    }
+
+    if (longitude < -180 || longitude > 180) {
+      return NextResponse.json(
+        { error: 'Longitude must be between -180 and 180' },
+        { status: 400 }
+      )
+    }
+
+    // Validate risk level if provided
+    const validRiskLevels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']
+    if (riskLevel && !validRiskLevels.includes(riskLevel)) {
+      return NextResponse.json(
+        { error: 'Invalid risk level. Must be one of: LOW, MEDIUM, HIGH, CRITICAL' },
+        { status: 400 }
+      )
+    }
+
     // Create new district
     const district = await prisma.district.create({
       data: {
@@ -63,6 +87,9 @@ export async function POST(request: Request) {
         riskLevel: riskLevel || 'LOW',
       },
     })
+
+    // Invalidate cache after creating new district
+    await cacheDel('districts:all')
 
     return NextResponse.json(district, { status: 201 })
   } catch (error) {
