@@ -62,3 +62,4 @@ Direct pushes to `main` are not allowed after initialization.
 
 🚧 Project initialization in progress.  
 Features will be added incrementally following sprint planning and reviews.
+Still working on ideas and collaboration.
