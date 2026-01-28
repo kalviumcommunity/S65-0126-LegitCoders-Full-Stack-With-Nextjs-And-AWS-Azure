@@ -1,0 +1,75 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// District model for tracking flood-prone areas
+model District {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  state       String
+  riskLevel   RiskLevel @default(LOW)
+  latitude    Float
+  longitude   Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  alerts      Alert[]
+  weatherData WeatherData[]
+}
+
+// Weather data from meteorological APIs
+model WeatherData {
+  id          String   @id @default(cuid())
+  districtId  String
+  district    District @relation(fields: [districtId], references: [id])
+  
+  rainfall    Float    // in mm
+  temperature Float    // in celsius
+  humidity    Float    // percentage
+  windSpeed   Float    // in km/h
+  pressure    Float    // in hPa
+  
+  timestamp   DateTime @default(now())
+  source      String   // API source name
+  
+  @@index([districtId, timestamp])
+}
+
+// Alert model for flood warnings
+model Alert {
+  id          String    @id @default(cuid())
+  districtId  String
+  district    District  @relation(fields: [districtId], references: [id])
+  
+  severity    AlertSeverity
+  title       String
+  message     String
+  isActive    Boolean   @default(true)
+  
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  expiresAt   DateTime?
+  
+  @@index([districtId, isActive])
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  ALERT
+  EMERGENCY
+}
