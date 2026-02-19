@@ -1,0 +1,78 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model District {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  state     String
+  latitude  Float
+  longitude Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  weatherData       WeatherData[]
+  riskAssessments   RiskAssessment[]
+  alerts            Alert[]
+  
+  @@map("districts")
+}
+
+model WeatherData {
+  id          String   @id @default(cuid())
+  districtId  String
+  rainfall    Float    // mm
+  temperature Float    // Celsius
+  humidity    Float    // percentage (0-100)
+  windSpeed   Float    // km/h
+  recordedAt  DateTime
+  createdAt   DateTime @default(now())
+
+  district    District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+
+  @@index([districtId])
+  @@index([recordedAt])
+  @@map("weather_data")
+}
+
+model RiskAssessment {
+  id           String   @id @default(cuid())
+  districtId   String
+  riskLevel    String   // LOW | MODERATE | HIGH | CRITICAL
+  score        Float    // 0-100
+  description  String?  // Additional info about risk assessment
+  calculatedAt DateTime
+  createdAt    DateTime @default(now())
+
+  district     District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+
+  @@index([districtId])
+  @@index([calculatedAt])
+  @@map("risk_assessments")
+}
+
+model Alert {
+  id        String   @id @default(cuid())
+  districtId String
+  message   String
+  riskLevel String   // LOW | MODERATE | HIGH | CRITICAL
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deactivatedAt DateTime?
+
+  district  District @relation(fields: [districtId], references: [id], onDelete: Cascade)
+
+  @@index([districtId])
+  @@index([isActive])
+  @@index([createdAt])
+  @@map("alerts")
+}

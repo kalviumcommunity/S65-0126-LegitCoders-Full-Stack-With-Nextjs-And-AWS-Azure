@@ -1,0 +1,95 @@
+version: "3.8"
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    container_name: flood_warning_db
+    environment:
+      POSTGRES_USER: ${DB_USER:-flooduser}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-floodpassword}
+      POSTGRES_DB: ${DB_NAME:-flood_warning_db}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-flooduser}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - flood-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: flood_warning_redis
+    command: redis-server --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - flood-network
+
+  # Backend Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: flood_warning_backend
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${DB_USER:-flooduser}:${DB_PASSWORD:-floodpassword}@db:5432/${DB_NAME:-flood_warning_db}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      PORT: 3000
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:3000}
+      OPENWEATHERMAP_API_KEY: ${OPENWEATHERMAP_API_KEY}
+      WEATHER_API_CACHE_TTL: ${WEATHER_API_CACHE_TTL:-600}
+      RATE_LIMIT_WINDOW_MS: ${RATE_LIMIT_WINDOW_MS:-900000}
+      RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
+      CRON_JOB_INTERVAL: ${CRON_JOB_INTERVAL:-15}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "${PORT:-3000}:3000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    networks:
+      - flood-network
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "wget",
+          "--quiet",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3000/api/health",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  flood-network:
+    driver: bridge
